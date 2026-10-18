@@ -1,36 +1,57 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { StyleSheet, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { usePillPal, UserRole } from '@/context/PillPalContext';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 
 export default function LoginScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { setRole } = usePillPal();
+
+  const [selectedRole, setSelectedRole] = useState<UserRole>('student');
+  const [email, setEmail] = useState('kmm@carsu.edu.ph');
+  const [password, setPassword] = useState('password123');
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleSelectRole = (role: UserRole) => {
+    setSelectedRole(role);
+    if (role === 'student') {
+      setEmail('kmm@carsu.edu.ph');
+    } else {
+      setEmail('dr.santos@carsu.edu.ph');
+    }
+  };
 
   const handleLogin = () => {
     setIsLoading(true);
+    setRole(selectedRole);
+
     setTimeout(() => {
       setIsLoading(false);
-      // Navigate to dashboard
-      // router.replace('/dashboard');
-    }, 1500);
+      if (selectedRole === 'student') {
+        router.replace('/(tabs)/home');
+      } else {
+        router.replace('/provider');
+      }
+    }, 400);
   };
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardView}
         >
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <Link href="/" asChild>
                 <Pressable style={styles.backButton}>
@@ -45,13 +66,64 @@ export default function LoginScreen() {
                 style={styles.logo}
                 contentFit="contain"
               />
-              <ThemedText style={styles.title}>Welcome Back</ThemedText>
-              <ThemedText style={styles.subtitle} themeColor="textSecondary">Sign in to your account.</ThemedText>
+              <ThemedText style={styles.title}>ACCESS_PORTAL</ThemedText>
+              <ThemedText style={styles.subtitle} themeColor="textSecondary">
+                Caraga State University Health Adherence Platform
+              </ThemedText>
+
+              {/* Role Toggle Tabs */}
+              <View style={[styles.roleToggleContainer, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+                <TouchableOpacity
+                  style={[
+                    styles.roleToggleBtn,
+                    selectedRole === 'student' && { backgroundColor: theme.primary },
+                  ]}
+                  onPress={() => handleSelectRole('student')}
+                >
+                  <Ionicons
+                    name="school"
+                    size={16}
+                    color={selectedRole === 'student' ? '#ffffff' : theme.textSecondary}
+                  />
+                  <ThemedText
+                    style={[
+                      styles.roleToggleText,
+                      { color: selectedRole === 'student' ? '#ffffff' : theme.textSecondary },
+                    ]}
+                  >
+                    CSU Student
+                  </ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.roleToggleBtn,
+                    selectedRole === 'provider' && { backgroundColor: theme.primary },
+                  ]}
+                  onPress={() => handleSelectRole('provider')}
+                >
+                  <Ionicons
+                    name="medkit"
+                    size={16}
+                    color={selectedRole === 'provider' ? '#ffffff' : theme.textSecondary}
+                  />
+                  <ThemedText
+                    style={[
+                      styles.roleToggleText,
+                      { color: selectedRole === 'provider' ? '#ffffff' : theme.textSecondary },
+                    ]}
+                  >
+                    Doctor / UCHW
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
 
               <TextInput 
                 style={[styles.input, { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text }]}
-                placeholder="E-mail"
+                placeholder={selectedRole === 'student' ? "CSU Student E-mail / ID" : "Provider ID / E-mail"}
                 placeholderTextColor={theme.textSecondary}
+                value={email}
+                onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
@@ -60,6 +132,8 @@ export default function LoginScreen() {
                 style={[styles.input, { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text }]}
                 placeholder="Password"
                 placeholderTextColor={theme.textSecondary}
+                value={password}
+                onChangeText={setPassword}
                 secureTextEntry
               />
 
@@ -78,7 +152,7 @@ export default function LoginScreen() {
                 disabled={isLoading}
               >
                 <ThemedText style={[styles.submitButtonText, { color: theme.primaryText }]}>
-                  {isLoading ? 'Signing in...' : 'SIGN IN'}
+                  {isLoading ? 'Authenticating...' : `SIGN IN AS ${selectedRole.toUpperCase()}`}
                 </ThemedText>
               </Pressable>
 
@@ -88,7 +162,7 @@ export default function LoginScreen() {
                 </ThemedText>
                 <Link href="/register" asChild>
                   <Pressable>
-                    <ThemedText style={[styles.footerText, { color: theme.text, fontFamily: 'Outfit_600SemiBold' }]}>
+                    <ThemedText style={[styles.footerText, { color: theme.primary, fontFamily: 'Outfit_600SemiBold' }]}>
                       Sign Up
                     </ThemedText>
                   </Pressable>
@@ -140,18 +214,40 @@ const styles = StyleSheet.create({
   logo: {
     width: 48,
     height: 48,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   title: {
     fontFamily: 'Outfit_700Bold',
-    fontSize: 32,
-    letterSpacing: -1,
-    marginBottom: Spacing.one,
+    fontSize: 28,
+    letterSpacing: -0.5,
+    marginBottom: 4,
   },
   subtitle: {
     fontFamily: 'Outfit_400Regular',
-    fontSize: 16,
-    marginBottom: Spacing.five,
+    fontSize: 13,
+    marginBottom: Spacing.four,
+    textAlign: 'center',
+  },
+  roleToggleContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    padding: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: Spacing.three,
+  },
+  roleToggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  roleToggleText: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 13,
   },
   input: {
     width: '100%',
@@ -160,7 +256,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 16,
     fontFamily: 'Outfit_400Regular',
-    fontSize: 16,
+    fontSize: 15,
     marginBottom: Spacing.three,
   },
   forgotPassword: {
@@ -171,7 +267,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontFamily: 'Outfit_500Medium',
-    fontSize: 14,
+    fontSize: 13,
   },
   submitButton: {
     width: '100%',
@@ -179,11 +275,11 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.four,
   },
   submitButtonText: {
-    fontFamily: 'Outfit_600SemiBold',
-    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 15,
     letterSpacing: 0.5,
   },
   footer: {

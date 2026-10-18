@@ -10,6 +10,7 @@ import {
   Outfit_600SemiBold, 
   Outfit_700Bold 
 } from '@expo-google-fonts/outfit';
+import { PillPalProvider } from '@/context/PillPalContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -33,9 +34,16 @@ export default function TabLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-      </Stack>
+      <PillPalProvider>
+        <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="register" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="provider" />
+          <Stack.Screen name="sus-survey" options={{ presentation: 'modal' }} />
+        </Stack>
+      </PillPalProvider>
     </ThemeProvider>
   );
 }

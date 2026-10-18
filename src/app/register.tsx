@@ -7,30 +7,47 @@ import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { usePillPal } from '@/context/PillPalContext';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 
 export default function RegisterScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { updateStudentProfile, setRole } = usePillPal();
+
+  const [name, setName] = useState('Kylle Mae Mercado');
+  const [studentId, setStudentId] = useState('CSU-2022-0941');
+  const [course, setCourse] = useState('BS Information Technology');
+  const [yearLevel, setYearLevel] = useState('4th Year');
+  const [email, setEmail] = useState('kmm@carsu.edu.ph');
+  const [password, setPassword] = useState('password123');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleRegister = () => {
     setIsLoading(true);
+    updateStudentProfile({
+      name,
+      studentId,
+      course,
+      yearLevel,
+      email,
+    });
+    setRole('student');
+
     setTimeout(() => {
       setIsLoading(false);
-      // Navigate to dashboard
-      // router.replace('/dashboard');
-    }, 1500);
+      router.replace('/(tabs)/home');
+    }, 400);
   };
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardView}
         >
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <Link href="/" asChild>
                 <Pressable style={styles.backButton}>
@@ -45,27 +62,60 @@ export default function RegisterScreen() {
                 style={styles.logo}
                 contentFit="contain"
               />
-              <ThemedText style={styles.title}>Create Account</ThemedText>
-              <ThemedText style={styles.subtitle} themeColor="textSecondary">Join us and start managing your health.</ThemedText>
+              <ThemedText style={styles.title}>Student Registration</ThemedText>
+              <ThemedText style={styles.subtitle} themeColor="textSecondary">
+                Connect your health profile to Caraga State University UCHW.
+              </ThemedText>
 
               <TextInput 
                 style={[styles.input, { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text }]}
-                placeholder="Name"
+                placeholder="Full Name"
                 placeholderTextColor={theme.textSecondary}
+                value={name}
+                onChangeText={setName}
+              />
+
+              <View style={styles.twoCol}>
+                <TextInput 
+                  style={[styles.inputHalf, { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text }]}
+                  placeholder="Student ID (CSU-XXXX-XXXX)"
+                  placeholderTextColor={theme.textSecondary}
+                  value={studentId}
+                  onChangeText={setStudentId}
+                />
+                <TextInput 
+                  style={[styles.inputHalf, { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text }]}
+                  placeholder="Year Level (e.g. 4th Year)"
+                  placeholderTextColor={theme.textSecondary}
+                  value={yearLevel}
+                  onChangeText={setYearLevel}
+                />
+              </View>
+
+              <TextInput 
+                style={[styles.input, { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text }]}
+                placeholder="Degree Program (e.g. BSIT, BSCS)"
+                placeholderTextColor={theme.textSecondary}
+                value={course}
+                onChangeText={setCourse}
               />
 
               <TextInput 
                 style={[styles.input, { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text }]}
-                placeholder="E-mail"
+                placeholder="CSU Student E-mail"
                 placeholderTextColor={theme.textSecondary}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
               />
               
               <TextInput 
                 style={[styles.input, { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text }]}
                 placeholder="Password"
                 placeholderTextColor={theme.textSecondary}
+                value={password}
+                onChangeText={setPassword}
                 secureTextEntry
               />
 
@@ -80,7 +130,7 @@ export default function RegisterScreen() {
                 disabled={isLoading}
               >
                 <ThemedText style={[styles.submitButtonText, { color: theme.primaryText }]}>
-                  {isLoading ? 'Creating...' : 'CREATE ACCOUNT'}
+                  {isLoading ? 'Creating Student Account...' : 'REGISTER WITH CSU UCHW'}
                 </ThemedText>
               </Pressable>
 
@@ -90,7 +140,7 @@ export default function RegisterScreen() {
                 </ThemedText>
                 <Link href="/login" asChild>
                   <Pressable>
-                    <ThemedText style={[styles.footerText, { color: theme.text, fontFamily: 'Outfit_600SemiBold' }]}>
+                    <ThemedText style={[styles.footerText, { color: theme.primary, fontFamily: 'Outfit_600SemiBold' }]}>
                       Sign In
                     </ThemedText>
                   </Pressable>
@@ -142,27 +192,43 @@ const styles = StyleSheet.create({
   logo: {
     width: 48,
     height: 48,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   title: {
     fontFamily: 'Outfit_700Bold',
-    fontSize: 32,
-    letterSpacing: -1,
-    marginBottom: Spacing.one,
+    fontSize: 28,
+    letterSpacing: -0.5,
+    marginBottom: 4,
   },
   subtitle: {
     fontFamily: 'Outfit_400Regular',
-    fontSize: 16,
-    marginBottom: Spacing.five,
+    fontSize: 13,
+    marginBottom: Spacing.four,
+    textAlign: 'center',
+  },
+  twoCol: {
+    flexDirection: 'row',
+    gap: 8,
+    width: '100%',
+  },
+  inputHalf: {
+    flex: 1,
+    height: 50,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontFamily: 'Outfit_400Regular',
+    fontSize: 14,
+    marginBottom: Spacing.three,
   },
   input: {
     width: '100%',
-    height: 52,
+    height: 50,
     borderRadius: 12,
     borderWidth: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     fontFamily: 'Outfit_400Regular',
-    fontSize: 16,
+    fontSize: 14,
     marginBottom: Spacing.three,
   },
   submitButton: {
@@ -172,11 +238,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: Spacing.two,
-    marginBottom: Spacing.five,
+    marginBottom: Spacing.four,
   },
   submitButtonText: {
-    fontFamily: 'Outfit_600SemiBold',
-    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 14,
     letterSpacing: 0.5,
   },
   footer: {
