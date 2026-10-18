@@ -32,7 +32,7 @@ export default function TabLayout() {
         options={{
           title: 'Today',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'today' : 'today-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'today' : 'today-outline'} size={22} color={color as string} />
           ),
         }}
       />
@@ -41,7 +41,7 @@ export default function TabLayout() {
         options={{
           title: 'Medicines',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'medkit' : 'medkit-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'medkit' : 'medkit-outline'} size={22} color={color as string} />
           ),
         }}
       />
@@ -50,7 +50,7 @@ export default function TabLayout() {
         options={{
           title: 'ScanRx',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'scan-circle' : 'scan-circle-outline'} size={26} color={color} />
+            <Ionicons name={focused ? 'scan-circle' : 'scan-circle-outline'} size={26} color={color as string} />
           ),
         }}
       />
@@ -59,7 +59,7 @@ export default function TabLayout() {
         options={{
           title: 'Adherence',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={22} color={color as string} />
           ),
         }}
       />
@@ -68,7 +68,7 @@ export default function TabLayout() {
         options={{
           title: 'Clinic Chat',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={22} color={color as string} />
           ),
         }}
       />
