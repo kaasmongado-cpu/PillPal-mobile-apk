@@ -4,6 +4,7 @@ import {
   View,
   Text,
   ScrollView,
+  type ScrollViewInstance,
   TouchableOpacity,
   TextInput,
   KeyboardAvoidingView,
@@ -29,7 +30,7 @@ export default function MessagesScreen() {
 // duplicate animation code removed
   const { messages, sendMessage, studentProfile } = usePillPal();
   const [inputText, setInputText] = useState('');
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   const quickChips = [
     { label: '💊 Refill Request', text: 'Hello Doctor, I would like to request a prescription refill for my maintenance medication.', category: 'refill' as const },
