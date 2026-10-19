@@ -1,8 +1,7 @@
-import React from 'react';
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Platform } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
+import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
 
 export default function TabLayout() {
   const theme = useTheme();
@@ -31,8 +30,8 @@ export default function TabLayout() {
         name="home"
         options={{
           title: 'Today',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'today' : 'today-outline'} size={22} color={color as string} />
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Ionicons name={focused ? 'today' : 'today-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -40,8 +39,8 @@ export default function TabLayout() {
         name="medications"
         options={{
           title: 'Medicines',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'medkit' : 'medkit-outline'} size={22} color={color as string} />
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Ionicons name={focused ? 'today' : 'today-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -49,8 +48,8 @@ export default function TabLayout() {
         name="scan"
         options={{
           title: 'ScanRx',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'scan-circle' : 'scan-circle-outline'} size={26} color={color as string} />
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Ionicons name={focused ? 'today' : 'today-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -58,8 +57,8 @@ export default function TabLayout() {
         name="analytics"
         options={{
           title: 'Adherence',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={22} color={color as string} />
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Ionicons name={focused ? 'today' : 'today-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -67,8 +66,8 @@ export default function TabLayout() {
         name="messages"
         options={{
           title: 'Clinic Chat',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={22} color={color as string} />
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Ionicons name={focused ? 'today' : 'today-outline'} size={22} color={color} />
           ),
         }}
       />
