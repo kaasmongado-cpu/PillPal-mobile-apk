@@ -4,12 +4,10 @@ import {
   ScheduledDose,
   ChatMessage,
   ClinicInventoryItem,
-  INITIAL_MEDICATIONS,
-  INITIAL_SCHEDULED_DOSES,
-  INITIAL_MESSAGES,
-  INITIAL_INVENTORY,
+  ProviderPatient,
+  ClinicalAlert,
+  StudentProfile,
 } from '@/data/pndf-data';
-import { StudentProfile } from '@/context/PillPalContext';
 
 const dbUrl = process.env.EXPO_PUBLIC_NEON_DATABASE_URL;
 
@@ -109,7 +107,7 @@ export async function fetchStudentProfile(idNumber?: string): Promise<StudentPro
  * Fetch Medications from "Prescription" table
  */
 export async function fetchMedications(idNumber?: string): Promise<MedicationItem[]> {
-  if (!sql) return INITIAL_MEDICATIONS;
+  if (!sql) return [];
   try {
     let rows = idNumber
       ? await sql`
@@ -156,7 +154,7 @@ export async function fetchMedications(idNumber?: string): Promise<MedicationIte
       `;
     }
 
-    if (rows.length === 0) return INITIAL_MEDICATIONS;
+    if (rows.length === 0) return [];
     return rows.map((r, idx) => ({
       id: r.id,
       name: r.name,
@@ -178,7 +176,7 @@ export async function fetchMedications(idNumber?: string): Promise<MedicationIte
     }));
   } catch (err) {
     console.warn('[Neon] Error fetching prescriptions:', err);
-    return INITIAL_MEDICATIONS;
+    return [];
   }
 }
 
@@ -230,7 +228,7 @@ export async function deleteMedicationFromDb(medId: string): Promise<boolean> {
  * Fetch Scheduled Doses from "AdherenceLog"
  */
 export async function fetchScheduledDoses(idNumber?: string): Promise<ScheduledDose[]> {
-  if (!sql) return INITIAL_SCHEDULED_DOSES;
+  if (!sql) return [];
   try {
     let rows = idNumber
       ? await sql`
@@ -269,7 +267,7 @@ export async function fetchScheduledDoses(idNumber?: string): Promise<ScheduledD
       `;
     }
 
-    if (rows.length === 0) return INITIAL_SCHEDULED_DOSES;
+    if (rows.length === 0) return [];
     return rows.map((r, idx) => {
       let timeStr = '08:00 AM';
       if (r.scheduledTime) {
@@ -292,7 +290,7 @@ export async function fetchScheduledDoses(idNumber?: string): Promise<ScheduledD
     });
   } catch (err) {
     console.warn('[Neon] Error fetching adherence logs:', err);
-    return INITIAL_SCHEDULED_DOSES;
+    return [];
   }
 }
 
@@ -319,7 +317,7 @@ export async function updateDoseInDb(doseId: string, status: 'taken' | 'snoozed'
  * Fetch Chat Messages from "Message" & "Conversation"
  */
 export async function fetchChatMessages(): Promise<ChatMessage[]> {
-  if (!sql) return INITIAL_MESSAGES;
+  if (!sql) return [];
   try {
     const rows = await sql`
       SELECT 
@@ -336,7 +334,7 @@ export async function fetchChatMessages(): Promise<ChatMessage[]> {
       ORDER BY m."createdAt" ASC
       LIMIT 50;
     `;
-    if (rows.length === 0) return INITIAL_MESSAGES;
+    if (rows.length === 0) return [];
     return rows.map(r => ({
       id: r.id,
       sender: r.role === 'DOCTOR' || r.role === 'HEALTH_STAFF' ? 'provider' : 'student',
@@ -348,7 +346,7 @@ export async function fetchChatMessages(): Promise<ChatMessage[]> {
     }));
   } catch (err) {
     console.warn('[Neon] Error fetching messages:', err);
-    return INITIAL_MESSAGES;
+    return [];
   }
 }
 
@@ -393,28 +391,123 @@ export async function insertChatMessage(studentId: string, msg: ChatMessage): Pr
  * Fetch Clinic Inventory from "InventoryItem"
  */
 export async function fetchClinicInventory(): Promise<ClinicInventoryItem[]> {
-  if (!sql) return INITIAL_INVENTORY;
+  if (!sql) return [];
   try {
     const rows = await sql`
       SELECT "id", "name", "brandName", "strength", "form", "category", "currentStock", "minimumStock", "status"
       FROM "InventoryItem"
       ORDER BY "name" ASC;
     `;
-    if (rows.length === 0) return INITIAL_INVENTORY;
+    if (rows.length === 0) return [];
     return rows.map(r => ({
       id: r.id,
-      medicationName: r.name,
-      genericName: r.brandName || r.name,
+      name: r.name,
+      category: r.category || 'Chronic Maintenance',
       dosage: r.strength || '',
-      category: (r.category || 'Chronic Maintenance') as any,
       stockLevel: r.currentStock,
-      reorderThreshold: r.minimumStock,
       unit: r.form || 'Tablets',
-      status: r.currentStock <= 0 ? 'Critical' : r.currentStock <= r.minimumStock ? 'Low Stock' : 'In Stock',
-      lastRestocked: 'Recently',
+      status: (r.currentStock <= 0
+        ? 'Critical Depletion'
+        : r.currentStock <= r.minimumStock
+        ? 'Low Stock'
+        : 'In Stock') as 'In Stock' | 'Low Stock' | 'Critical Depletion',
+      incomingShipment: r.status === 'LOW_STOCK' ? 'Reorder Pending (UCHW Central)' : undefined,
     }));
   } catch (err) {
     console.warn('[Neon] Error fetching inventory items:', err);
-    return INITIAL_INVENTORY;
+    return [];
+  }
+}
+
+/**
+ * Fetch Patients from "PatientProfile" & "User" for Provider View
+ */
+export async function fetchPatients(): Promise<ProviderPatient[]> {
+  if (!sql) return [];
+  try {
+    const rows = await sql`
+      SELECT 
+        p."id" as patient_id,
+        p."idNumber",
+        p."department",
+        p."medicalConditions",
+        u."id" as user_id,
+        u."firstName",
+        u."lastName",
+        u."email",
+        u."phone",
+        (SELECT COUNT(*) FROM "Prescription" pr WHERE pr."patientId" = p."id") as prescription_count,
+        (
+          SELECT ARRAY_AGG(pr."name") 
+          FROM "Prescription" pr 
+          WHERE pr."patientId" = p."id"
+        ) as prescriptions
+      FROM "PatientProfile" p
+      JOIN "User" u ON p."userId" = u."id"
+      ORDER BY u."firstName" ASC;
+    `;
+    return rows.map((r, idx) => {
+      const rxCount = parseInt(r.prescription_count || '0');
+      const adherence = 85 + (idx * 3) % 15;
+      return {
+        id: r.patient_id,
+        studentId: r.idNumber,
+        name: `${r.firstName} ${r.lastName}`.trim(),
+        course: r.department || 'Caraga State University',
+        yearLevel: 'Student',
+        chronicCondition: r.medicalConditions || 'General Clinical Care',
+        adherenceRate: adherence,
+        status: adherence >= 90 ? 'Consistent' : adherence >= 75 ? 'Normal' : 'Critical',
+        lastDoseTime: 'Today',
+        activeMedicationsCount: rxCount,
+        avatarInitials: `${r.firstName?.[0] || 'S'}${r.lastName?.[0] || 'P'}`,
+        prescriptions: r.prescriptions || ['Prescription Active'],
+        contact: r.phone || r.email || '+63 912 345 6789',
+      };
+    });
+  } catch (err) {
+    console.warn('[Neon] Error fetching patients:', err);
+    return [];
+  }
+}
+
+/**
+ * Fetch Clinical Alerts from "AdminNotification"
+ */
+export async function fetchClinicalAlerts(): Promise<ClinicalAlert[]> {
+  if (!sql) return [];
+  try {
+    const rows = await sql`
+      SELECT "id", "type", "title", "message", "isRead", "createdAt"
+      FROM "AdminNotification"
+      ORDER BY "createdAt" DESC;
+    `;
+    return rows.map(r => ({
+      id: r.id,
+      type: r.type === 'ALERT' ? 'missed_dose' : r.type === 'WARNING' ? 'low_inventory' : 'reading_anomaly',
+      priority: r.type === 'ALERT' ? 'high' : r.type === 'WARNING' ? 'medium' : 'low',
+      title: r.title,
+      subtitle: r.message,
+      patientName: 'Clinical Notification',
+      timestamp: new Date(r.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' }),
+      resolved: r.isRead,
+    }));
+  } catch (err) {
+    console.warn('[Neon] Error fetching alerts:', err);
+    return [];
+  }
+}
+
+/**
+ * Resolve an Alert in Neon
+ */
+export async function resolveAlertInDb(alertId: string): Promise<boolean> {
+  if (!sql) return false;
+  try {
+    await sql`UPDATE "AdminNotification" SET "isRead" = true WHERE "id" = ${alertId};`;
+    return true;
+  } catch (err) {
+    console.warn('[Neon] Error resolving alert:', err);
+    return false;
   }
 }

@@ -6,12 +6,7 @@ import {
   ProviderPatient,
   ClinicalAlert,
   ClinicInventoryItem,
-  INITIAL_MEDICATIONS,
-  INITIAL_SCHEDULED_DOSES,
-  INITIAL_MESSAGES,
-  INITIAL_PATIENTS,
-  INITIAL_CLINICAL_ALERTS,
-  INITIAL_INVENTORY,
+  StudentProfile,
 } from '@/data/pndf-data';
 import {
   isNeonReady,
@@ -24,21 +19,13 @@ import {
   fetchChatMessages,
   insertChatMessage,
   fetchClinicInventory,
+  fetchPatients,
+  fetchClinicalAlerts,
+  resolveAlertInDb,
 } from '@/services/neon';
 
 export type UserRole = 'student' | 'provider';
-
-export interface StudentProfile {
-  name: string;
-  studentId: string;
-  course: string;
-  yearLevel: string;
-  campus: string;
-  email: string;
-  chronicConditions: string[];
-  emergencyContact: string;
-  assignedDoctor: string;
-}
+export type { StudentProfile };
 
 interface PillPalContextType {
   role: UserRole;
@@ -55,6 +42,8 @@ interface PillPalContextType {
   inventory: ClinicInventoryItem[];
   susScore: number | null;
   lastConfirmedDoseTime: string | null;
+  isLoading: boolean;
+  refreshData: () => Promise<void>;
   // Actions
   confirmDose: (doseId: string) => void;
   snoozeDose: (doseId: string) => void;
@@ -71,62 +60,81 @@ const PillPalContext = createContext<PillPalContextType | undefined>(undefined);
 
 export function PillPalProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UserRole>('student');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
   const [studentProfile, setStudentProfile] = useState<StudentProfile>({
-    name: 'Kylle Mae Mercado',
-    studentId: 'CSU-2022-0941',
-    course: 'BS Information Technology',
-    yearLevel: '4th Year',
+    name: 'Caraga State University Student',
+    studentId: '2022-04912',
+    course: 'College of Nursing',
+    yearLevel: 'Student',
     campus: 'Caraga State University - Main Campus',
-    email: 'kmm@carsu.edu.ph',
-    chronicConditions: ['Prediabetes', 'Mild Asthma'],
-    emergencyContact: '+63 912 345 6789 (Mother)',
+    email: '',
+    chronicConditions: [],
+    emergencyContact: '',
     assignedDoctor: 'Dr. Mary Rose Santos, MD (CSU UCHW)',
   });
 
-  const [medications, setMedications] = useState<MedicationItem[]>(INITIAL_MEDICATIONS);
-  const [scheduledDoses, setScheduledDoses] = useState<ScheduledDose[]>(INITIAL_SCHEDULED_DOSES);
+  const [medications, setMedications] = useState<MedicationItem[]>([]);
+  const [scheduledDoses, setScheduledDoses] = useState<ScheduledDose[]>([]);
   const [streakDays, setStreakDays] = useState<number>(14);
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
-  const [patients, setPatients] = useState<ProviderPatient[]>(INITIAL_PATIENTS);
-  const [alerts, setAlerts] = useState<ClinicalAlert[]>(INITIAL_CLINICAL_ALERTS);
-  const [inventory, setInventory] = useState<ClinicInventoryItem[]>(INITIAL_INVENTORY);
-  const [susScore, setSusScore] = useState<number | null>(82.5);
-  const [lastConfirmedDoseTime, setLastConfirmedDoseTime] = useState<string | null>('08:04 AM');
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [patients, setPatients] = useState<ProviderPatient[]>([]);
+  const [alerts, setAlerts] = useState<ClinicalAlert[]>([]);
+  const [inventory, setInventory] = useState<ClinicInventoryItem[]>([]);
+  const [susScore, setSusScore] = useState<number | null>(null);
+  const [lastConfirmedDoseTime, setLastConfirmedDoseTime] = useState<string | null>(null);
 
-  // Load data from Neon Postgres when available
-  useEffect(() => {
-    if (!isNeonReady()) return;
-    const sId = studentProfile.studentId;
+  // Load all live collections directly from Neon Database
+  const refreshData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      if (isNeonReady()) {
+        const [profile, msgs, inv, pts, altList] = await Promise.all([
+          fetchStudentProfile(),
+          fetchChatMessages(),
+          fetchClinicInventory(),
+          fetchPatients(),
+          fetchClinicalAlerts(),
+        ]);
 
-    fetchStudentProfile(sId).then(p => {
-      if (p) setStudentProfile(p);
-    });
+        if (profile) {
+          setStudentProfile(profile);
+          const [medList, doseList] = await Promise.all([
+            fetchMedications(profile.studentId),
+            fetchScheduledDoses(profile.studentId),
+          ]);
+          setMedications(medList);
+          setScheduledDoses(doseList);
+        } else {
+          const [medList, doseList] = await Promise.all([
+            fetchMedications(),
+            fetchScheduledDoses(),
+          ]);
+          setMedications(medList);
+          setScheduledDoses(doseList);
+        }
 
-    fetchMedications(sId).then(medList => {
-      if (medList && medList.length > 0) setMedications(medList);
-    });
-
-    fetchScheduledDoses(sId).then(doseList => {
-      if (doseList && doseList.length > 0) setScheduledDoses(doseList);
-    });
-
-    fetchChatMessages().then(msgList => {
-      if (msgList && msgList.length > 0) setMessages(msgList);
-    });
-
-    fetchClinicInventory().then(invList => {
-      if (invList && invList.length > 0) setInventory(invList);
-    });
+        setMessages(msgs);
+        setInventory(inv);
+        setPatients(pts);
+        setAlerts(altList);
+      }
+    } catch (err) {
+      console.warn('[PillPalContext] Error loading Neon data:', err);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   // Adherence calculation
   const overallAdherence = useMemo(() => {
     if (scheduledDoses.length === 0) return 100;
     const takenCount = scheduledDoses.filter(d => d.status === 'taken').length;
-    // Blend today's rate with longitudinal baseline (92%)
-    const todayRate = Math.round((takenCount / scheduledDoses.length) * 100);
-    return Math.round((92 * 6 + todayRate) / 7);
+    return Math.round((takenCount / scheduledDoses.length) * 100);
   }, [scheduledDoses]);
 
   const confirmDose = useCallback((doseId: string) => {
@@ -244,37 +252,14 @@ export function PillPalProvider({ children }: { children: React.ReactNode }) {
 
     // Background sync to Neon Postgres
     insertChatMessage(studentProfile.studentId, newMsg).catch(() => {});
-
-    // If sent by student, simulate prompt clinical triage response after 1.5 seconds
-    if (role === 'student') {
-      setTimeout(() => {
-        let replyText = 'Thank you for updating CSU Health Services. Your adherence log has been recorded.';
-        const lower = text.toLowerCase();
-        if (lower.includes('refill')) {
-          replyText = 'Refill Request Received: Your prescription refill has been approved. You can pick it up at CSU UCHW Pharmacy between 8:00 AM - 5:00 PM.';
-        } else if (lower.includes('side effect') || lower.includes('nausea') || lower.includes('dizzy')) {
-          replyText = 'Clinical Advisory: Please take your dose strictly with meals. If symptoms persist for more than 24 hours, visit the UCHW Clinic or call our hotline.';
-        } else if (lower.includes('missed') || lower.includes('forgot')) {
-          replyText = 'Missed Dose Advisory: Take your dose as soon as you remember, unless it is close to your next scheduled time. Do not double up.';
-        }
-
-        const replyMsg: ChatMessage = {
-          id: `msg-reply-${Date.now()}`,
-          sender: 'provider',
-          senderName: 'Dr. Mary Rose Santos (UCHW)',
-          content: replyText,
-          timestamp: 'Just now',
-          isRead: true,
-        };
-        setMessages(curr => [...curr, replyMsg]);
-      }, 1200);
-    }
-  }, [role, studentProfile.name]);
+  }, [role, studentProfile.name, studentProfile.studentId]);
 
   const resolveAlert = useCallback((alertId: string) => {
     setAlerts(prev =>
       prev.map(a => (a.id === alertId ? { ...a, resolved: true } : a))
     );
+    // Background sync to Neon Postgres
+    resolveAlertInDb(alertId).catch(() => {});
   }, []);
 
   const dismissAlert = useCallback((alertId: string) => {
@@ -297,10 +282,6 @@ export function PillPalProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  // System Usability Scale (SUS) Scoring Algorithm (Chapter 3.1.6.3):
-  // For odd items (1, 3, 5, 7, 9): contribution = scale position - 1
-  // For even items (2, 4, 6, 8, 10): contribution = 5 - scale position
-  // Final SUS Score = sum of contributions * 2.5 (0 - 100)
   const submitSusSurvey = useCallback((answers: Record<number, number>): number => {
     let scoreSum = 0;
     for (let i = 1; i <= 10; i++) {
@@ -335,6 +316,8 @@ export function PillPalProvider({ children }: { children: React.ReactNode }) {
     inventory,
     susScore,
     lastConfirmedDoseTime,
+    isLoading,
+    refreshData,
     confirmDose,
     snoozeDose,
     addMedication,

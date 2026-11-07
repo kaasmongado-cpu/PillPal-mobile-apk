@@ -318,10 +318,10 @@ export default function AnalyticsScreen() {
                   • Continuous Streak: <Text style={{ fontFamily: 'Outfit_700Bold' }}>{streakDays} Days</Text>
                 </Text>
                 <Text style={styles.sheetStatLine}>
-                  • Active Chronic Conditions: {studentProfile.chronicConditions.join(', ')}
+                  • Active Chronic Conditions: {studentProfile.chronicConditions?.length ? studentProfile.chronicConditions.join(', ') : 'None listed'}
                 </Text>
                 <Text style={styles.sheetStatLine}>
-                  • Monitored Medications: {medications.map(m => m.name).join(', ')}
+                  • Monitored Medications: {medications?.length ? medications.map(m => m.name).join(', ') : 'None recorded'}
                 </Text>
               </View>
 

@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -29,6 +31,8 @@ export default function HomeScreen() {
     confirmDose,
     snoozeDose,
     lastConfirmedDoseTime,
+    isLoading,
+    refreshData,
   } = usePillPal();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'taken'>('all');
@@ -67,6 +71,14 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={refreshData}
+            colors={[theme.primary]}
+            tintColor={theme.primary}
+          />
+        }
       >
         <View style={styles.maxWidthWrapper}>
           {/* Greeting Banner */}
@@ -241,7 +253,15 @@ export default function HomeScreen() {
 
           {/* Dose List */}
           <View style={styles.dosesList}>
-            {filteredDoses.length > 0 ? (
+            {isLoading ? (
+              <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border, paddingVertical: 32 }]}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={[styles.emptyTitle, { color: theme.text, marginTop: 12 }]}>Syncing with Neon DB...</Text>
+                <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+                  Loading live clinical adherence records.
+                </Text>
+              </View>
+            ) : filteredDoses.length > 0 ? (
               filteredDoses.map(dose => (
                 <DoseCard
                   key={dose.id}

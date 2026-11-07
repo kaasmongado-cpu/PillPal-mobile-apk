@@ -9,6 +9,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -28,9 +29,9 @@ export default function MessagesScreen() {
     opacity.value = withTiming(1, { duration: 500 });
   }, []);
 // duplicate animation code removed
-  const { messages, sendMessage, studentProfile } = usePillPal();
+  const { messages, sendMessage, studentProfile, isLoading } = usePillPal();
   const [inputText, setInputText] = useState('');
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<any>(null);
 
   const quickChips = [
     { label: '💊 Refill Request', text: 'Hello Doctor, I would like to request a prescription refill for my maintenance medication.', category: 'refill' as const },
@@ -123,67 +124,86 @@ export default function MessagesScreen() {
 
             {/* Message Bubbles */}
             <View style={styles.bubblesList}>
-              {messages.map(msg => {
-                const isMe = msg.sender === 'student';
-                return (
-                  <View
-                    key={msg.id}
-                    style={[
-                      styles.messageRow,
-                      isMe ? styles.messageRowMe : styles.messageRowOther,
-                    ]}
-                  >
-                    {!isMe && (
-                      <View style={[styles.bubbleAvatar, { backgroundColor: theme.primaryLight }]}>
-                        <Text style={[styles.bubbleAvatarText, { color: theme.primary }]}>Dr</Text>
-                      </View>
-                    )}
-
+              {isLoading ? (
+                <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center' }}>
+                  <ActivityIndicator size="large" color={theme.primary} />
+                  <Text style={{ marginTop: 12, color: theme.textSecondary, fontFamily: 'Outfit_500Medium' }}>
+                    Loading conversation history from Neon...
+                  </Text>
+                </View>
+              ) : messages.length === 0 ? (
+                <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center' }}>
+                  <MaterialCommunityIcons name="chat-outline" size={40} color={theme.textSecondary} />
+                  <Text style={{ marginTop: 12, color: theme.text, fontFamily: 'Outfit_600SemiBold' }}>
+                    No Messages Yet
+                  </Text>
+                  <Text style={{ marginTop: 4, color: theme.textSecondary, fontFamily: 'Outfit_400Regular' }}>
+                    Send an inquiry or refill request to CSU UCHW.
+                  </Text>
+                </View>
+              ) : (
+                messages.map(msg => {
+                  const isMe = msg.sender === 'student';
+                  return (
                     <View
+                      key={msg.id}
                       style={[
-                        styles.bubble,
-                        isMe
-                          ? [styles.bubbleMe, { backgroundColor: theme.primary }]
-                          : [styles.bubbleOther, { backgroundColor: theme.card, borderColor: theme.border }],
+                        styles.messageRow,
+                        isMe ? styles.messageRowMe : styles.messageRowOther,
                       ]}
                     >
-                      <Text
+                      {!isMe && (
+                        <View style={[styles.bubbleAvatar, { backgroundColor: theme.primaryLight }]}>
+                          <Text style={[styles.bubbleAvatarText, { color: theme.primary }]}>Dr</Text>
+                        </View>
+                      )}
+
+                      <View
                         style={[
-                          styles.bubbleSender,
-                          { color: isMe ? 'rgba(255,255,255,0.7)' : theme.primary },
+                          styles.bubble,
+                          isMe
+                            ? [styles.bubbleMe, { backgroundColor: theme.primary }]
+                            : [styles.bubbleOther, { backgroundColor: theme.card, borderColor: theme.border }],
                         ]}
                       >
-                        {msg.senderName}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.bubbleText,
-                          { color: isMe ? '#ffffff' : theme.text },
-                        ]}
-                      >
-                        {msg.content}
-                      </Text>
-                      <View style={styles.bubbleMeta}>
                         <Text
                           style={[
-                            styles.timestampText,
-                            { color: isMe ? 'rgba(255,255,255,0.7)' : theme.textSecondary },
+                            styles.bubbleSender,
+                            { color: isMe ? 'rgba(255,255,255,0.7)' : theme.primary },
                           ]}
                         >
-                          {msg.timestamp}
+                          {msg.senderName}
                         </Text>
-                        {isMe && (
-                          <Ionicons
-                            name="checkmark-done"
-                            size={14}
-                            color="rgba(255,255,255,0.8)"
-                          />
-                        )}
+                        <Text
+                          style={[
+                            styles.bubbleText,
+                            { color: isMe ? '#ffffff' : theme.text },
+                          ]}
+                        >
+                          {msg.content}
+                        </Text>
+                        <View style={styles.bubbleMeta}>
+                          <Text
+                            style={[
+                              styles.timestampText,
+                              { color: isMe ? 'rgba(255,255,255,0.7)' : theme.textSecondary },
+                            ]}
+                          >
+                            {msg.timestamp}
+                          </Text>
+                          {isMe && (
+                            <Ionicons
+                              name="checkmark-done"
+                              size={14}
+                              color="rgba(255,255,255,0.8)"
+                            />
+                          )}
+                        </View>
                       </View>
                     </View>
-                  </View>
-                );
-              })}
+                  );
+                })
+              )}
             </View>
           </View>
         </Animated.ScrollView>

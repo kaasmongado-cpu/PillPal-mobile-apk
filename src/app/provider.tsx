@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -31,6 +33,8 @@ export default function ProviderScreen() {
     resolveAlert,
     dismissAlert,
     reorderInventory,
+    isLoading,
+    refreshData,
   } = usePillPal();
 
   const [activeTab, setActiveTab] = useState<ProviderTab>('dashboard');
@@ -155,7 +159,18 @@ export default function ProviderScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={refreshData}
+            colors={[theme.primary]}
+            tintColor={theme.primary}
+          />
+        }
+      >
         <View style={styles.maxWidthWrapper}>
           {/* TAB 1: MAIN DASHBOARD (Figure 3-8.2 B) */}
           {activeTab === 'dashboard' && (
@@ -444,7 +459,25 @@ export default function ProviderScreen() {
 
               {/* Patients List Cards */}
               <View style={styles.patientCardsGrid}>
-                {filteredPatients.map(pt => (
+                {isLoading ? (
+                  <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                    <ActivityIndicator size="large" color={theme.primary} />
+                    <Text style={{ marginTop: 12, color: theme.textSecondary, fontFamily: 'Outfit_500Medium' }}>
+                      Loading patient cohorts from Neon...
+                    </Text>
+                  </View>
+                ) : filteredPatients.length === 0 ? (
+                  <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                    <Ionicons name="people-outline" size={40} color={theme.textSecondary} />
+                    <Text style={{ marginTop: 12, color: theme.text, fontFamily: 'Outfit_600SemiBold' }}>
+                      No Patients Found
+                    </Text>
+                    <Text style={{ marginTop: 4, color: theme.textSecondary, fontFamily: 'Outfit_400Regular' }}>
+                      No patients match your search criteria.
+                    </Text>
+                  </View>
+                ) : (
+                  filteredPatients.map(pt => (
                   <View
                     key={pt.id}
                     style={[styles.patientCard, { backgroundColor: theme.card, borderColor: theme.border }]}
@@ -539,7 +572,7 @@ export default function ProviderScreen() {
                       </TouchableOpacity>
                     </View>
                   </View>
-                ))}
+                )))}
               </View>
             </View>
           )}
@@ -595,7 +628,14 @@ export default function ProviderScreen() {
               </View>
 
               <View style={styles.alertsList}>
-                {filteredAlerts.length > 0 ? (
+                {isLoading ? (
+                  <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                    <ActivityIndicator size="large" color={theme.primary} />
+                    <Text style={{ marginTop: 12, color: theme.textSecondary, fontFamily: 'Outfit_500Medium' }}>
+                      Syncing clinical alerts from Neon...
+                    </Text>
+                  </View>
+                ) : filteredAlerts.length > 0 ? (
                   filteredAlerts.map(alert => (
                     <View
                       key={alert.id}
@@ -882,7 +922,22 @@ export default function ProviderScreen() {
 
               {/* Inventory Table Cards */}
               <View style={styles.inventoryList}>
-                {inventory.map(item => {
+                {isLoading ? (
+                  <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                    <ActivityIndicator size="large" color={theme.primary} />
+                    <Text style={{ marginTop: 12, color: theme.textSecondary, fontFamily: 'Outfit_500Medium' }}>
+                      Loading pharmacy stock from Neon...
+                    </Text>
+                  </View>
+                ) : inventory.length === 0 ? (
+                  <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                    <Ionicons name="cube-outline" size={40} color={theme.textSecondary} />
+                    <Text style={{ marginTop: 12, color: theme.text, fontFamily: 'Outfit_600SemiBold' }}>
+                      No Inventory Items Found
+                    </Text>
+                  </View>
+                ) : (
+                  inventory.map(item => {
                   const isLow = item.stockLevel <= 25;
                   return (
                     <View
@@ -955,7 +1010,7 @@ export default function ProviderScreen() {
                       </View>
                     </View>
                   );
-                })}
+                }))}
               </View>
             </View>
           )}

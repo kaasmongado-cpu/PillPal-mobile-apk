@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -20,7 +22,7 @@ import { PNDF_MEDICATIONS, MedicationItem, PNDFMedication } from '@/data/pndf-da
 export default function MedicationsScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { medications, addMedication, deleteMedication, sendMessage } = usePillPal();
+  const { medications, addMedication, deleteMedication, sendMessage, isLoading, refreshData } = usePillPal();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'daily' | 'prn'>('all');
@@ -103,6 +105,14 @@ export default function MedicationsScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={refreshData}
+            colors={[theme.primary]}
+            tintColor={theme.primary}
+          />
+        }
       >
         <View style={styles.maxWidthWrapper}>
           {/* Header Action Bar */}
@@ -208,7 +218,24 @@ export default function MedicationsScreen() {
 
           {/* Medication Cards List */}
           <View style={styles.medsList}>
-            {filteredMeds.map(med => {
+            {isLoading ? (
+              <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.cardBorder, paddingVertical: 32 }]}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={[styles.emptyTitle, { color: theme.text, marginTop: 12 }]}>Loading Prescriptions...</Text>
+                <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+                  Syncing active regimens from Neon.
+                </Text>
+              </View>
+            ) : filteredMeds.length === 0 ? (
+              <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.cardBorder, paddingVertical: 32 }]}>
+                <MaterialCommunityIcons name="pill-off" size={40} color={theme.textSecondary} />
+                <Text style={[styles.emptyTitle, { color: theme.text, marginTop: 12 }]}>No Prescriptions Found</Text>
+                <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+                  No active prescriptions match your current filter.
+                </Text>
+              </View>
+            ) : (
+              filteredMeds.map(med => {
               const pillRatio = Math.min(1, med.pillsRemaining / med.totalPills);
               const isLowSupply = med.pillsRemaining <= med.refillThreshold;
 
@@ -336,8 +363,9 @@ export default function MedicationsScreen() {
                   </View>
                 </TouchableOpacity>
               );
-            })}
-          </View>
+            })
+          )}
+        </View>
         </View>
       </ScrollView>
 
@@ -932,5 +960,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
     fontSize: 15,
     color: '#ffffff',
+  },
+  emptyCard: {
+    borderWidth: 1.5,
+    borderRadius: 20,
+    padding: Spacing.four,
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyTitle: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 18,
+    marginTop: 8,
+  },
+  emptySubtitle: {
+    fontFamily: 'Outfit_400Regular',
+    fontSize: 13,
+    textAlign: 'center',
   },
 });
