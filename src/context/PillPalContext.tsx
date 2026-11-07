@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
 import {
   MedicationItem,
   ScheduledDose,
@@ -13,6 +13,18 @@ import {
   INITIAL_CLINICAL_ALERTS,
   INITIAL_INVENTORY,
 } from '@/data/pndf-data';
+import {
+  isNeonReady,
+  fetchStudentProfile,
+  fetchMedications,
+  saveMedication,
+  deleteMedicationFromDb,
+  fetchScheduledDoses,
+  updateDoseInDb,
+  fetchChatMessages,
+  insertChatMessage,
+  fetchClinicInventory,
+} from '@/services/neon';
 
 export type UserRole = 'student' | 'provider';
 
@@ -82,6 +94,32 @@ export function PillPalProvider({ children }: { children: React.ReactNode }) {
   const [susScore, setSusScore] = useState<number | null>(82.5);
   const [lastConfirmedDoseTime, setLastConfirmedDoseTime] = useState<string | null>('08:04 AM');
 
+  // Load data from Neon Postgres when available
+  useEffect(() => {
+    if (!isNeonReady()) return;
+    const sId = studentProfile.studentId;
+
+    fetchStudentProfile(sId).then(p => {
+      if (p) setStudentProfile(p);
+    });
+
+    fetchMedications(sId).then(medList => {
+      if (medList && medList.length > 0) setMedications(medList);
+    });
+
+    fetchScheduledDoses(sId).then(doseList => {
+      if (doseList && doseList.length > 0) setScheduledDoses(doseList);
+    });
+
+    fetchChatMessages().then(msgList => {
+      if (msgList && msgList.length > 0) setMessages(msgList);
+    });
+
+    fetchClinicInventory().then(invList => {
+      if (invList && invList.length > 0) setInventory(invList);
+    });
+  }, []);
+
   // Adherence calculation
   const overallAdherence = useMemo(() => {
     if (scheduledDoses.length === 0) return 100;
@@ -123,12 +161,18 @@ export function PillPalProvider({ children }: { children: React.ReactNode }) {
       setLastConfirmedDoseTime(timeString);
       return updated;
     });
+
+    // Background sync to Neon Postgres
+    updateDoseInDb(doseId, 'taken', timeString).catch(() => {});
   }, []);
 
   const snoozeDose = useCallback((doseId: string) => {
     setScheduledDoses(prev =>
       prev.map(dose => (dose.id === doseId ? { ...dose, status: 'snoozed' as const } : dose))
     );
+
+    // Background sync to Neon Postgres
+    updateDoseInDb(doseId, 'snoozed').catch(() => {});
   }, []);
 
   const addMedication = useCallback((newMed: Partial<MedicationItem>) => {
@@ -156,6 +200,9 @@ export function PillPalProvider({ children }: { children: React.ReactNode }) {
 
     setMedications(prev => [fullMed, ...prev]);
 
+    // Background sync to Neon Postgres
+    saveMedication(studentProfile.studentId, fullMed).catch(() => {});
+
     // Also add scheduled doses for today
     const newDoses: ScheduledDose[] = fullMed.times.map((t, i) => ({
       id: `dose-${medId}-${i}`,
@@ -170,11 +217,14 @@ export function PillPalProvider({ children }: { children: React.ReactNode }) {
     }));
 
     setScheduledDoses(prev => [...prev, ...newDoses]);
-  }, []);
+  }, [studentProfile.studentId]);
 
   const deleteMedication = useCallback((id: string) => {
     setMedications(prev => prev.filter(m => m.id !== id));
     setScheduledDoses(prev => prev.filter(d => d.medicationId !== id));
+
+    // Background sync to Neon Postgres
+    deleteMedicationFromDb(id).catch(() => {});
   }, []);
 
   const sendMessage = useCallback((text: string, category?: ChatMessage['category']) => {
@@ -191,6 +241,9 @@ export function PillPalProvider({ children }: { children: React.ReactNode }) {
     };
 
     setMessages(prev => [...prev, newMsg]);
+
+    // Background sync to Neon Postgres
+    insertChatMessage(studentProfile.studentId, newMsg).catch(() => {});
 
     // If sent by student, simulate prompt clinical triage response after 1.5 seconds
     if (role === 'student') {
